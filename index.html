@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#101713">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Féline 31">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Féline 31 – Tableau tactique</title>
+<style>
+:root{color-scheme:dark;--bg:#101713;--panel:#1b2721;--green:#159447;--yellow:#f5d900}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overscroll-behavior:none}
+header{padding:calc(12px + env(safe-area-inset-top)) 16px 12px;display:flex;align-items:center;justify-content:space-between;background:#101713}
+h1{font-size:18px;margin:0;font-weight:800;letter-spacing:.3px}header small{color:#a8b8ad}
+main{max-width:1100px;margin:auto;padding:8px 12px 20px}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px}
+button{border:1px solid #506157;border-radius:10px;background:var(--panel);color:#fff;padding:10px 13px;font-size:14px;font-weight:650;min-height:42px}
+button.active{background:#126d3c;border-color:#42c77a}
+#board{width:100%;aspect-ratio:371/263;position:relative;touch-action:none;border:3px solid white;border-radius:5px;overflow:hidden;background:#1682b5}
+svg{width:100%;height:100%;display:block}
+.token{position:absolute;width:38px;height:46px;transform:translate(-50%,-50%);touch-action:none;user-select:none}
+.token .body{position:absolute;left:8px;top:17px;width:22px;height:25px;border:2px solid white;border-radius:11px 11px 8px 8px;background:var(--fill)}
+.token .head{position:absolute;left:9px;top:0;width:20px;height:20px;border:2px solid white;border-radius:50%;background:var(--fill);display:flex;align-items:center;justify-content:center;color:var(--ink);font-size:9px;font-weight:900;z-index:2}
+.token.selected:after{content:"";position:absolute;left:2px;top:-6px;width:34px;height:53px;border:1.5px solid white;border-radius:18px;pointer-events:none}
+.handle{position:absolute;left:50%;top:-24px;transform:translateX(-50%);width:17px;height:17px;border-radius:50%;background:white;border:3px solid #1682b5;box-shadow:0 0 0 1px #fff;touch-action:none}
+.ball{position:absolute;width:19px;height:19px;border-radius:50%;background:#ff7900;border:2px solid white;transform:translate(-50%,-50%);touch-action:none}
+.note{font-size:12px;color:#b8c7bd;line-height:1.4;margin:10px 2px}
+@media(orientation:landscape){main{padding-top:4px}.toolbar{margin:5px 0 8px}button{min-height:38px;padding:8px 11px}}
+</style>
+</head>
+<body>
+<header><div><h1>FÉLINE 31</h1><small>Tableau tactique · Handball féminin</small></div><small>TACTIQUE</small></header>
+<main>
+<div class="toolbar">
+<button id="reset">Réinitialiser</button>
+<button id="selectAll" class="active">Déplacement</button>
+</div>
+<div id="board" aria-label="Terrain tactique interactif">
+<svg viewBox="0 0 371 263" preserveAspectRatio="none" aria-hidden="true">
+<rect width="371" height="263" fill="#1682b5"/>
+<path d="M0 78.5 A53 53 0 0 1 0 184.5 L0 78.5Z" fill="#e7217c"/>
+<path d="M0 78.5 A53 53 0 0 1 0 184.5 M0 78.5 H7 M0 184.5 H7" fill="none" stroke="white" stroke-width="3"/>
+<path d="M7 7H364V256H7Z M185.5 7V256" fill="none" stroke="white" stroke-width="3"/>
+<circle cx="185.5" cy="131.5" r="9" fill="none" stroke="white" stroke-width="2"/>
+<path d="M0 116H7V147H0" fill="none" stroke="white" stroke-width="2"/>
+</svg>
+</div>
+<p class="note">Touchez un joueur pour le sélectionner. Faites glisser son corps pour le déplacer et sa poignée blanche pour l’orienter à 360°. Les couleurs, numéros et postes restent inchangés. Le ballon orange est également déplaçable.</p>
+</main>
+<script>
+(()=>{
+const board=document.getElementById('board');
+const initial=[
+[48,132,0,'g','1'],[91,48,0,'g','2'],[91,82,0,'g','3'],[91,116,0,'g','4'],[91,150,0,'g','5'],[91,184,0,'g','6'],[48,222,0,'g','7'],
+[270,40,180,'y','ALG'],[315,40,180,'y','ALD'],[292,132,180,'y','PIV'],[315,224,180,'y','ARG'],[250,132,180,'y','DC'],[270,224,180,'y','ARD'],[25,132,0,'r','G']
+];
+let players=[],ball={x:185,y:132},selected=null,drag=null;
+const colors={g:['#159447','#fff'],y:['#f5d900','#111'],r:['#e21e35','#fff']};
+function makePlayers(){board.querySelectorAll('.token,.ball').forEach(n=>n.remove());players=initial.map((d,i)=>{let p={x:d[0],y:d[1],angle:d[2],team:d[3],label:d[4],id:i};let el=document.createElement('div');el.className='token';el.innerHTML='<div class="head"></div><div class="body"></div><div class="handle"></div>';el.querySelector('.head').textContent=p.label;el.style.setProperty('--fill',colors[p.team][0]);el.style.setProperty('--ink',colors[p.team][1]);board.appendChild(el);p.el=el;el.addEventListener('pointerdown',e=>startPlayer(e,p));el.querySelector('.handle').addEventListener('pointerdown',e=>startRotate(e,p));return p;});ball={x:185,y:132};let b=document.createElement('div');b.className='ball';board.appendChild(b);ball.el=b;b.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();drag={type:'ball',el:b};b.setPointerCapture(e.pointerId);});render();}
+function render(){const w=board.clientWidth,h=board.clientHeight;players.forEach(p=>{p.el.style.left=(p.x/371*100)+'%';p.el.style.top=(p.y/263*100)+'%';p.el.style.transform=`translate(-50%,-50%) rotate(${p.angle}deg)`;p.el.classList.toggle('selected',selected===p);p.el.querySelector('.handle').style.display=selected===p?'block':'none';});ball.el.style.left=(ball.x/371*100)+'%';ball.el.style.top=(ball.y/263*100)+'%';}
+function coords(e){let r=board.getBoundingClientRect();return{x:(e.clientX-r.left)/r.width*371,y:(e.clientY-r.top)/r.height*263};}
+function startPlayer(e,p){e.preventDefault();e.stopPropagation();selected=p;drag={type:'player',p};p.el.setPointerCapture(e.pointerId);render();}
+function startRotate(e,p){e.preventDefault();e.stopPropagation();selected=p;drag={type:'rotate',p};p.el.setPointerCapture(e.pointerId);render();}
+function move(e){if(!drag)return;let q=coords(e);if(drag.type==='player'){drag.p.x=Math.max(10,Math.min(361,q.x));drag.p.y=Math.max(10,Math.min(253,q.y));}else if(drag.type==='rotate'){drag.p.angle=Math.atan2(q.y-drag.p.y,q.x-drag.p.x)*180/Math.PI;}else if(drag.type==='ball'){ball.x=Math.max(8,Math.min(363,q.x));ball.y=Math.max(8,Math.min(255,q.y));}render();}
+board.addEventListener('pointermove',move);board.addEventListener('pointerup',()=>drag=null);board.addEventListener('pointercancel',()=>drag=null);
+document.getElementById('reset').onclick=()=>{selected=null;makePlayers();};document.getElementById('selectAll').onclick=()=>{selected=null;render();};
+window.addEventListener('resize',render);makePlayers();if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
+})();
+</script>
+</body></html>
